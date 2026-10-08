@@ -152,8 +152,8 @@
                                 <tr class="bg-themeGreen text-white">
                                     <th class="p-2">Pos</th>
                                     <th class="p-2">Nickname</th>
-                                    <th class="p-2">Stato</th>
                                     <th class="p-2">Punteggio</th>
+                                    <th class="p-2">Stato</th>
                                     <th class="p-2 text-center">Azioni / Pronostici</th>
                                 </tr>
                             </thead>
@@ -686,11 +686,12 @@
                 const tr = document.createElement('tr');
                 tr.className = "border-b hover:bg-green-50 transition";
                 
+                // Ordine corretto: Pos | Nickname | Punteggio | Stato | Azioni
                 tr.innerHTML = `
                     <td class="p-2 font-bold">#${idx + 1}</td>
                     <td class="p-2 font-semibold text-themeGreen">${p.nickname}</td>
-                    <td class="p-2">${isDraftStr}</td>
                     <td class="p-2 font-bold text-gray-800">${p.score} pt</td>
+                    <td class="p-2">${isDraftStr}</td>
                     <td class="p-2 text-center space-x-2">
                         <button onclick='showParticipantDetail(${JSON.stringify(p)})' class="bg-green-100 text-themeGreen px-2 py-1 rounded text-xs font-bold hover:bg-green-200 transition">👁️ Vedi</button>
                         <button onclick="deleteParticipant('${p.nickname}')" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-200 transition">🗑️ Elimina</button>
@@ -700,9 +701,6 @@
             });
         }
         
-        // ==========================================
-        // NUOVA FUNZIONE ESPORTA CON FOGLIO FORMULE
-        // ==========================================
         window.exportToGoogleSheets = function() {
             if(!window.lastParticipantsList || window.lastParticipantsList.length === 0) {
                 alert("Non ci sono dati da esportare!");
@@ -711,7 +709,6 @@
 
             const wb = XLSX.utils.book_new();
 
-            // Funzione helper per ottenere la lettera colonna (es. C, D, AA)
             function getColName(n) {
                 let name = "";
                 while (n >= 0) {
@@ -721,7 +718,7 @@
                 return name;
             }
 
-            // --- FOGLIO 1: CALCOLATORE AUTOMATICO (CON FORMULE EXCEL) ---
+            // --- FOGLIO 1: CALCOLATORE AUTOMATICO ---
             let dataCalc = [];
             let rigaNomiEventi = ["", ""];
             let rigaRisposteEsatte = ["RISPOSTE ESATTE -->", "Scrivi qui A, B, C o field"];
@@ -729,7 +726,7 @@
 
             window.eventsData.forEach(ev => {
                 rigaNomiEventi.push(`Ev. ${ev.id}: ${ev.evento}`);
-                rigaRisposteEsatte.push(window.correctAnswers[ev.id] || ""); // Pre-compila se già inserite
+                rigaRisposteEsatte.push(window.correctAnswers[ev.id] || ""); 
                 rigaHeaderCalc.push(`Punti Ev. ${ev.id}`);
             });
 
@@ -739,17 +736,14 @@
 
             window.lastParticipantsList.forEach((p, idx) => {
                 let rigaGiocatore = [];
-                let rowDati = idx + 2; // Riferimento riga nel foglio Chiavi
-                let rowCalc = idx + 4; // Riga corrente nel foglio Calcolatore
+                let rowDati = idx + 2; 
+                let rowCalc = idx + 4; 
 
-                // Nickname collegato al foglio Chiavi
                 rigaGiocatore.push({ f: `Chiavi_Risposte!A${rowDati}` });
 
-                // Formula Somma (da C4 fino all'ultima colonna calcolata)
                 let lastCol = getColName(window.eventsData.length + 1);
                 rigaGiocatore.push({ f: `SUM(C${rowCalc}:${lastCol}${rowCalc})` });
 
-                // Formule per i singoli punteggi
                 window.eventsData.forEach((ev, evIdx) => {
                     let col = getColName(evIdx + 2); 
                     let cellDati = `${col}${rowDati}`;
@@ -761,7 +755,7 @@
                 dataCalc.push(rigaGiocatore);
             });
 
-            // --- FOGLIO 2: PRONOSTICI TESTUALI (IL VECCHIO FOGLIO VISIVO) ---
+            // --- FOGLIO 2: PRONOSTICI TESTUALI ---
             let dataTesto = [];
             let headersTesto = ["Nickname", "Punteggio Totale", "Stato"];
             window.eventsData.forEach(ev => headersTesto.push(`Evento ${ev.id}: ${ev.evento}`));
@@ -777,7 +771,7 @@
                 dataTesto.push(row);
             });
 
-            // --- FOGLIO 3: CHIAVI RISPOSTE (Per far funzionare le formule) ---
+            // --- FOGLIO 3: CHIAVI RISPOSTE ---
             let dataChiavi = [];
             let headersChiavi = ["Nickname", "Stato"];
             window.eventsData.forEach(ev => headersChiavi.push(`Key Ev ${ev.id}`));
