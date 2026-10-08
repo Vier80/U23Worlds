@@ -32,7 +32,7 @@
     <header class="bg-gradient-to-r from-themeGreen to-themeLightGreen text-white shadow-lg border-b-4 border-themeDark">
         <div class="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
             <div class="flex items-center space-x-4">
-                <!-- LOGO CONTEST: Percorso con "./" e aggiunto onerror per debug -->
+                <!-- LOGO CONTEST -->
                 <img src="./logo.png" alt="Logo 2026 U23 World Championships" class="h-16 w-auto object-contain bg-white rounded shadow p-1 border-2 border-themeLightGreen" onerror="this.src='https://via.placeholder.com/150?text=Logo+Mancante'">
                 <div>
                     <h1 class="text-2xl sm:text-3xl font-black tracking-wider text-white drop-shadow-md">2026 U23 WORLD CHAMPIONSHIPS</h1>
@@ -152,9 +152,8 @@
                                 <tr class="bg-themeGreen text-white">
                                     <th class="p-2">Pos</th>
                                     <th class="p-2">Nickname</th>
-                                    <!-- Invertiti: Prima Punteggio, poi Stato -->
-                                    <th class="p-2">Punteggio</th>
                                     <th class="p-2">Stato</th>
+                                    <th class="p-2">Punteggio</th>
                                     <th class="p-2 text-center">Azioni / Pronostici</th>
                                 </tr>
                             </thead>
@@ -687,12 +686,11 @@
                 const tr = document.createElement('tr');
                 tr.className = "border-b hover:bg-green-50 transition";
                 
-                // Ordine scambiato anche qui: prima punteggio, poi stato
                 tr.innerHTML = `
                     <td class="p-2 font-bold">#${idx + 1}</td>
                     <td class="p-2 font-semibold text-themeGreen">${p.nickname}</td>
-                    <td class="p-2 font-bold text-gray-800">${p.score} pt</td>
                     <td class="p-2">${isDraftStr}</td>
+                    <td class="p-2 font-bold text-gray-800">${p.score} pt</td>
                     <td class="p-2 text-center space-x-2">
                         <button onclick='showParticipantDetail(${JSON.stringify(p)})' class="bg-green-100 text-themeGreen px-2 py-1 rounded text-xs font-bold hover:bg-green-200 transition">👁️ Vedi</button>
                         <button onclick="deleteParticipant('${p.nickname}')" class="bg-red-100 text-red-600 px-2 py-1 rounded text-xs font-bold hover:bg-red-200 transition">🗑️ Elimina</button>
@@ -702,35 +700,107 @@
             });
         }
         
+        // ==========================================
+        // NUOVA FUNZIONE ESPORTA CON FOGLIO FORMULE
+        // ==========================================
         window.exportToGoogleSheets = function() {
             if(!window.lastParticipantsList || window.lastParticipantsList.length === 0) {
                 alert("Non ci sono dati da esportare!");
                 return;
             }
-            
-            let dataForExcel = [];
-            
-            // Intestazione scambiata per il file Excel
-            let headers = ["Nickname", "Punteggio Totale", "Stato"];
+
+            const wb = XLSX.utils.book_new();
+
+            // Funzione helper per ottenere la lettera colonna (es. C, D, AA)
+            function getColName(n) {
+                let name = "";
+                while (n >= 0) {
+                    name = String.fromCharCode((n % 26) + 65) + name;
+                    n = Math.floor(n / 26) - 1;
+                }
+                return name;
+            }
+
+            // --- FOGLIO 1: CALCOLATORE AUTOMATICO (CON FORMULE EXCEL) ---
+            let dataCalc = [];
+            let rigaNomiEventi = ["", ""];
+            let rigaRisposteEsatte = ["RISPOSTE ESATTE -->", "Scrivi qui A, B, C o field"];
+            let rigaHeaderCalc = ["Nickname", "PUNTEGGIO TOTALE"];
+
             window.eventsData.forEach(ev => {
-                headers.push(`Evento ${ev.id}: ${ev.evento}`);
+                rigaNomiEventi.push(`Ev. ${ev.id}: ${ev.evento}`);
+                rigaRisposteEsatte.push(window.correctAnswers[ev.id] || ""); // Pre-compila se già inserite
+                rigaHeaderCalc.push(`Punti Ev. ${ev.id}`);
             });
-            dataForExcel.push(headers);
+
+            dataCalc.push(rigaNomiEventi);
+            dataCalc.push(rigaRisposteEsatte);
+            dataCalc.push(rigaHeaderCalc);
+
+            window.lastParticipantsList.forEach((p, idx) => {
+                let rigaGiocatore = [];
+                let rowDati = idx + 2; // Riferimento riga nel foglio Chiavi
+                let rowCalc = idx + 4; // Riga corrente nel foglio Calcolatore
+
+                // Nickname collegato al foglio Chiavi
+                rigaGiocatore.push({ f: `Chiavi_Risposte!A${rowDati}` });
+
+                // Formula Somma (da C4 fino all'ultima colonna calcolata)
+                let lastCol = getColName(window.eventsData.length + 1);
+                rigaGiocatore.push({ f: `SUM(C${rowCalc}:${lastCol}${rowCalc})` });
+
+                // Formule per i singoli punteggi
+                window.eventsData.forEach((ev, evIdx) => {
+                    let col = getColName(evIdx + 2); 
+                    let cellDati = `${col}${rowDati}`;
+                    let cellRisposta = `${col}$2`;
+                    
+                    let formula = `IF(Chiavi_Risposte!${cellDati}="","",IF(Chiavi_Risposte!${cellDati}=${cellRisposta},IF(${cellRisposta}="A",15,IF(${cellRisposta}="B",18,IF(${cellRisposta}="C",25,IF(${cellRisposta}="field",10,0)))),0))`;
+                    rigaGiocatore.push({ f: formula });
+                });
+                dataCalc.push(rigaGiocatore);
+            });
+
+            // --- FOGLIO 2: PRONOSTICI TESTUALI (IL VECCHIO FOGLIO VISIVO) ---
+            let dataTesto = [];
+            let headersTesto = ["Nickname", "Punteggio Totale", "Stato"];
+            window.eventsData.forEach(ev => headersTesto.push(`Evento ${ev.id}: ${ev.evento}`));
+            dataTesto.push(headersTesto);
             
             window.lastParticipantsList.forEach(p => {
                 const stato = p.isDraft ? "In Bozza" : "Inviato";
-                // Variabili scambiate per il file Excel
                 let row = [p.nickname, p.score, stato];
                 window.eventsData.forEach(ev => {
                     let sel = p.selections[ev.id];
                     row.push(sel ? sel.text : "Nessuna Scelta");
                 });
-                dataForExcel.push(row);
+                dataTesto.push(row);
             });
-            
-            const ws = XLSX.utils.aoa_to_sheet(dataForExcel);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Pronostici_LasVegas");
+
+            // --- FOGLIO 3: CHIAVI RISPOSTE (Per far funzionare le formule) ---
+            let dataChiavi = [];
+            let headersChiavi = ["Nickname", "Stato"];
+            window.eventsData.forEach(ev => headersChiavi.push(`Key Ev ${ev.id}`));
+            dataChiavi.push(headersChiavi);
+
+            window.lastParticipantsList.forEach(p => {
+                const stato = p.isDraft ? "In Bozza" : "Inviato";
+                let row = [p.nickname, stato];
+                window.eventsData.forEach(ev => {
+                    let sel = p.selections[ev.id];
+                    row.push(sel ? sel.key : "");
+                });
+                dataChiavi.push(row);
+            });
+
+            const wsCalc = XLSX.utils.aoa_to_sheet(dataCalc);
+            const wsTesto = XLSX.utils.aoa_to_sheet(dataTesto);
+            const wsChiavi = XLSX.utils.aoa_to_sheet(dataChiavi);
+
+            XLSX.utils.book_append_sheet(wb, wsCalc, "Calcolatore");
+            XLSX.utils.book_append_sheet(wb, wsTesto, "Pronostici_Testo");
+            XLSX.utils.book_append_sheet(wb, wsChiavi, "Chiavi_Risposte");
+
             XLSX.writeFile(wb, "Pronostici_LasVegas2026_FogliGoogle.xlsx");
         }
 
