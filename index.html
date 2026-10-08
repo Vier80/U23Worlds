@@ -11,10 +11,10 @@
             theme: {
                 extend: {
                     colors: {
-                        themeGreen: '#16a34a',       /* Verde principale (equivalente green-600) */
-                        themeLightGreen: '#4ade80',  /* Verde chiaro per gradiente (equivalente green-400) */
-                        themeDark: '#14532d',        /* Verde scuro per hover e footer (equivalente green-900) */
-                        themeLight: '#f0fdf4'        /* Sfondo chiarissimo verde (equivalente green-50) */
+                        themeGreen: '#16a34a',       /* Verde principale */
+                        themeLightGreen: '#4ade80',  /* Verde chiaro per gradiente */
+                        themeDark: '#14532d',        /* Verde scuro per hover e footer */
+                        themeLight: '#f0fdf4'        /* Sfondo chiarissimo verde */
                     }
                 }
             }
@@ -32,8 +32,8 @@
     <header class="bg-gradient-to-r from-themeGreen to-themeLightGreen text-white shadow-lg border-b-4 border-themeDark">
         <div class="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
             <div class="flex items-center space-x-4">
-                <!-- LOGO CONTEST -->
-                <img src="logo.png" alt="Logo 2026 U23 World Championships" class="h-16 w-auto object-contain bg-white rounded shadow p-1 border-2 border-themeLightGreen">
+                <!-- LOGO CONTEST: Percorso aggiornato con "./" e aggiunto onerror per debug -->
+                <img src="./logo.png" alt="Logo 2026 U23 World Championships" class="h-16 w-auto object-contain bg-white rounded shadow p-1 border-2 border-themeLightGreen" onerror="this.src='https://via.placeholder.com/150?text=Logo+Mancante'">
                 <div>
                     <h1 class="text-2xl sm:text-3xl font-black tracking-wider text-white drop-shadow-md">2026 U23 WORLD CHAMPIONSHIPS</h1>
                 </div>
@@ -211,22 +211,23 @@
         window.userSelections = {};
         window.correctAnswers = {};
         window.lastParticipantsList = []; 
-        window.hasSubmittedFinal = false; // VARIABILE DI SICUREZZA PER IL BLOCCO ANTICHEAT
+        window.hasSubmittedFinal = false;
 
         async function fetchEventsFromCloud() {
             if(isFirebaseActive && db) {
                 try {
-                    const docSnap = await getDoc(doc(db, "settings", "eventsData_dakar"));
+                    // Modificato per Las Vegas
+                    const docSnap = await getDoc(doc(db, "settings", "eventsData_lasvegas"));
                     if(docSnap.exists()) {
                         window.eventsData = docSnap.data().events || [];
-                        localStorage.setItem('dakar_events', JSON.stringify(window.eventsData));
+                        localStorage.setItem('lasvegas_events', JSON.stringify(window.eventsData));
                     }
                 } catch(err) {
                     console.error("Errore recupero eventi cloud:", err);
                 }
             }
             if(!window.eventsData.length) {
-                const savedEvents = localStorage.getItem('dakar_events');
+                const savedEvents = localStorage.getItem('lasvegas_events');
                 if(savedEvents) {
                     window.eventsData = JSON.parse(savedEvents);
                 }
@@ -256,16 +257,16 @@
                 return;
             }
 
-            window.hasSubmittedFinal = false; // Reset dello stato
+            window.hasSubmittedFinal = false;
 
             if(isFirebaseActive && db) {
                 try {
-                    const docSnap = await getDoc(doc(db, "participants_dakar", nick));
+                    // Modificato per Las Vegas
+                    const docSnap = await getDoc(doc(db, "participants_lasvegas", nick));
                     if(docSnap.exists()) {
                         const data = docSnap.data();
                         window.userSelections = data.selections || {};
                         
-                        // CONTROLLO ANTICHEAT E SOVRASCRITTURA
                         if(data.isDraft === false) {
                             window.hasSubmittedFinal = true;
                             alert(`Bentornato ${nick}! Attenzione: hai già inviato i tuoi pronostici definitivi in precedenza. Le tue schede sono bloccate in sola lettura e non possono più essere modificate.`);
@@ -277,7 +278,7 @@
                     console.error("Errore recupero dati utente:", err);
                 }
             } else {
-                let localParts = JSON.parse(localStorage.getItem('local_participants_dakar') || "{}");
+                let localParts = JSON.parse(localStorage.getItem('local_participants_lasvegas') || "{}");
                 if(localParts[nick]) {
                     const data = localParts[nick];
                     window.userSelections = data.selections || {};
@@ -294,8 +295,6 @@
             const btnStart = document.getElementById('btn-start');
             btnStart.innerText = "✓ Confermato";
             btnStart.disabled = true;
-            
-            /* Aggiorniamo le classi per lo stato confermato */
             btnStart.className = "bg-green-600 hover:bg-green-700 text-white font-bold px-4 py-2 rounded-lg shadow transition whitespace-nowrap";
 
             renderEvents();
@@ -307,7 +306,6 @@
 
             document.getElementById('events-section').classList.remove('hidden');
             
-            // GESTIONE VISIBILITA' BOTTONI IN BASE ALLO STATO DEFINITIVO
             const btnSave = document.getElementById('btn-save-draft');
             const btnSubmit = document.getElementById('btn-submit');
             const actionMsg = document.getElementById('action-msg');
@@ -359,13 +357,14 @@
 
                 if(isFirebaseActive && db) {
                     try {
-                        await setDoc(doc(db, "settings", "eventsData_dakar"), { events: window.eventsData });
+                        // Modificato per Las Vegas
+                        await setDoc(doc(db, "settings", "eventsData_lasvegas"), { events: window.eventsData });
                     } catch(err) {
                         console.error("Errore salvataggio eventi su Firebase:", err);
                     }
                 }
 
-                localStorage.setItem('dakar_events', JSON.stringify(window.eventsData));
+                localStorage.setItem('lasvegas_events', JSON.stringify(window.eventsData));
                 renderAdminAnswersSetup();
                 
                 const total = window.eventsData.length;
@@ -385,7 +384,6 @@
 
             container.innerHTML = '';
             
-            // Stile per label e attributo disabled se l'utente è bloccato
             const labelClass = window.hasSubmittedFinal 
                 ? "flex items-center space-x-2 p-2 rounded border border-gray-200 bg-gray-100 opacity-70 cursor-not-allowed" 
                 : "flex items-center space-x-2 p-2 rounded border border-gray-200 hover:bg-green-50 cursor-pointer transition";
@@ -427,7 +425,7 @@
         }
 
         window.selectOption = function(eventId, choiceKey, choiceText) {
-            if(window.hasSubmittedFinal) return; // Sicurezza extra
+            if(window.hasSubmittedFinal) return; 
             window.userSelections[eventId] = { key: choiceKey, text: choiceText };
             const count = Object.keys(window.userSelections).length;
             const total = window.eventsData.length;
@@ -450,16 +448,17 @@
 
             if(isFirebaseActive && db) {
                 try {
-                    await setDoc(doc(db, "participants_dakar", nickname), payload);
+                    // Modificato per Las Vegas
+                    await setDoc(doc(db, "participants_lasvegas", nickname), payload);
                     alert("💾 Bozza salvata con successo! Puoi chiudere la pagina e tornare quando vuoi reinserendo il tuo nickname.");
                 } catch(err) {
                     console.error(err);
                     alert("Errore durante il salvataggio.");
                 }
             } else {
-                let localParts = JSON.parse(localStorage.getItem('local_participants_dakar') || "{}");
+                let localParts = JSON.parse(localStorage.getItem('local_participants_lasvegas') || "{}");
                 localParts[nickname] = payload;
-                localStorage.setItem('local_participants_dakar', JSON.stringify(localParts));
+                localStorage.setItem('local_participants_lasvegas', JSON.stringify(localParts));
                 alert("💾 Bozza salvata in locale con successo!");
             }
         }
@@ -485,10 +484,10 @@
 
             if(isFirebaseActive && db) {
                 try {
-                    await setDoc(doc(db, "participants_dakar", nickname), payload);
-                    window.hasSubmittedFinal = true; // Aggiorna lo stato localmente
+                    // Modificato per Las Vegas
+                    await setDoc(doc(db, "participants_lasvegas", nickname), payload);
+                    window.hasSubmittedFinal = true; 
                     
-                    // Ridisegna la schermata per applicare subito i blocchi di sicurezza
                     document.getElementById('btn-save-draft').classList.add('hidden');
                     document.getElementById('btn-submit').classList.add('hidden');
                     document.getElementById('action-msg').innerHTML = "<strong class='text-red-500'>⚠️ Le tue scelte sono definitive, bloccate e non possono essere modificate.</strong>";
@@ -500,9 +499,9 @@
                     alert("Errore di invio su Firebase. Salva il tuo PDF come backup.");
                 }
             } else {
-                let localParts = JSON.parse(localStorage.getItem('local_participants_dakar') || "{}");
+                let localParts = JSON.parse(localStorage.getItem('local_participants_lasvegas') || "{}");
                 localParts[nickname] = payload;
-                localStorage.setItem('local_participants_dakar', JSON.stringify(localParts));
+                localStorage.setItem('local_participants_lasvegas', JSON.stringify(localParts));
                 window.hasSubmittedFinal = true;
                 
                 document.getElementById('btn-save-draft').classList.add('hidden');
@@ -521,7 +520,6 @@
 
             docPdf.setFont("helvetica", "bold");
             docPdf.setFontSize(18);
-            /* Aggiornato a colore Verde RGB per il PDF */
             docPdf.setTextColor(22, 163, 74);
             docPdf.text("2026 U23 World Championships - Riepilogo Pronostici", 14, 20);
 
@@ -547,13 +545,13 @@
                 y += 6;
 
                 docPdf.setFont("helvetica", "normal");
-                /* Testo selezione in verde principale */
                 docPdf.setTextColor(22, 163, 74);
                 docPdf.text(`Scelta: ${selText}`, 18, y);
                 y += 10;
             });
 
-            docPdf.save(`Pronostici_U23_2026_${nickname}.pdf`);
+            // Modificato anche il nome dell'esportazione in "LasVegas"
+            docPdf.save(`Pronostici_LasVegas2026_${nickname}.pdf`);
         }
 
         window.toggleAdminLogin = function() {
@@ -629,21 +627,23 @@
             });
 
             if(isFirebaseActive && db) {
-                await setDoc(doc(db, "settings", "correctAnswers_dakar"), { answers: window.correctAnswers });
+                // Modificato per Las Vegas
+                await setDoc(doc(db, "settings", "correctAnswers_lasvegas"), { answers: window.correctAnswers });
             }
-            localStorage.setItem('correct_answers_dakar', JSON.stringify(window.correctAnswers));
+            localStorage.setItem('correct_answers_lasvegas', JSON.stringify(window.correctAnswers));
             alert("Risposte corrette salvate con successo!");
             loadParticipantsData();
         }
 
         async function loadAdminAnswers() {
             if(isFirebaseActive && db) {
-                const docSnap = await getDoc(doc(db, "settings", "correctAnswers_dakar"));
+                // Modificato per Las Vegas
+                const docSnap = await getDoc(doc(db, "settings", "correctAnswers_lasvegas"));
                 if(docSnap.exists()) {
                     window.correctAnswers = docSnap.data().answers || {};
                 }
             } else {
-                window.correctAnswers = JSON.parse(localStorage.getItem('correct_answers_dakar') || "{}");
+                window.correctAnswers = JSON.parse(localStorage.getItem('correct_answers_lasvegas') || "{}");
             }
             for(let id in window.correctAnswers) {
                 const sel = document.getElementById(`correct_${id}`);
@@ -655,12 +655,13 @@
             let participantsList = [];
 
             if(isFirebaseActive && db) {
-                const querySnapshot = await getDocs(collection(db, "participants_dakar"));
+                // Modificato per Las Vegas
+                const querySnapshot = await getDocs(collection(db, "participants_lasvegas"));
                 querySnapshot.forEach((docSnap) => {
                     participantsList.push(docSnap.data());
                 });
             } else {
-                let localParts = JSON.parse(localStorage.getItem('local_participants_dakar') || "{}");
+                let localParts = JSON.parse(localStorage.getItem('local_participants_lasvegas') || "{}");
                 participantsList = Object.values(localParts);
             }
 
@@ -733,8 +734,8 @@
             
             const ws = XLSX.utils.aoa_to_sheet(dataForExcel);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Pronostici_U23");
-            XLSX.writeFile(wb, "Pronostici_U23_2026_FogliGoogle.xlsx");
+            XLSX.utils.book_append_sheet(wb, ws, "Pronostici_LasVegas");
+            XLSX.writeFile(wb, "Pronostici_LasVegas2026_FogliGoogle.xlsx");
         }
 
         window.showParticipantDetail = function(part) {
@@ -766,14 +767,15 @@
             if(confirm(`Sei sicuro di voler eliminare il partecipante ${nickname}?`)) {
                 if(isFirebaseActive && db) {
                     try {
-                        await deleteDoc(doc(db, "participants_dakar", nickname));
+                        // Modificato per Las Vegas
+                        await deleteDoc(doc(db, "participants_lasvegas", nickname));
                     } catch(e) {
                         console.error(e);
                     }
                 } else {
-                    let localParts = JSON.parse(localStorage.getItem('local_participants_dakar') || "{}");
+                    let localParts = JSON.parse(localStorage.getItem('local_participants_lasvegas') || "{}");
                     delete localParts[nickname];
-                    localStorage.setItem('local_participants_dakar', JSON.stringify(localParts));
+                    localStorage.setItem('local_participants_lasvegas', JSON.stringify(localParts));
                 }
                 alert("Partecipante eliminato.");
                 loadParticipantsData();
